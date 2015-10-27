@@ -1,0 +1,5 @@
+[config]
+loggly_token: your-token-here
+loggly_tags: S3CloudfrontToLoggly
+include_bucket_tag: 1
+max_lines: 1000

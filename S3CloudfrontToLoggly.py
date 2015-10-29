@@ -8,7 +8,9 @@ import logging
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile
 from ConfigParser import ConfigParser
-from httplib import HTTPSConnection, HTTPException
+from botocore.vendored import requests
+
+LOGGLY_URL = 'https://logs-01.loggly.com'
 
 log = logging.getLogger()
 log_format = '%(asctime)-15s %(levelname)s %(name)s %(module)s:%(funcName)s:%(lineno)s - %(message)s'
@@ -33,26 +35,19 @@ def upload(fh, bucket):
     tags = config.get('config', 'loggly_tags')
     if config.getboolean('config', 'include_bucket_tag'):
         tags += ',%s' % bucket
-    upload_path = '/bulk/%s/tag/%s' % (token, tags)
+    upload_url = '%s/bulk/%s/tag/%s' % (LOGGLY_URL, token, tags)
 
     log.debug("uploading bulk events from %s", fh.name)
-    log.debug("using upload_path: %s", upload_path)
+    log.debug("using upload url: %s", upload_url)
 
     fh.flush()
     fh.seek(0)
-    file_body = fh.read()
 
-    conn = HTTPSConnection("logs-01.loggly.com")
-
-    try:
-        conn.request("POST", upload_path, file_body, {'Content-type': 'application/json'})
-        resp = conn.getresponse()
-        log.debug("response status: %d", resp.status)
-        log.debug("response: %s", resp.read())
-        if resp.status != 200:
-            raise Exception("%s %s" % resp.status, resp.reason)
-    finally:
-        conn.close()
+    resp = requests.post(upload_url, data=fh,
+                         headers={'Content-type': 'application/json'})
+    log.debug("response status: %d", resp.status_code)
+    log.debug("response: %s", resp.content)
+    resp.raise_for_status()
 
 def lambda_handler(event, context):
     logging.debug("Received event: " + json.dumps(event, indent=2))

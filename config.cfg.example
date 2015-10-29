@@ -1,6 +1,4 @@
 [config]
-aws_access_key_id:
-aws_secret_access_key:
 loggly_token: your-token-here
 loggly_tags: S3CloudfrontToLoggly
 include_bucket_tag: 1

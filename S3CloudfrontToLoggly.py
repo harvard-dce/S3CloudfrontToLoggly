@@ -1,8 +1,7 @@
 # AWS Lambda python handler to push Cloudfront logs from s3 to loggly
 
-import os
 import csv
-import boto
+import boto3
 import gzip
 import json
 import logging
@@ -26,15 +25,7 @@ config.read('config.cfg')
 if config.getboolean('config', 'debug'):
     log.setLevel(logging.DEBUG)
 
-aws_access_key_id = config.get('config', 'aws_access_key_id')
-aws_secret_access_key = config.get('config', 'aws_secret_access_key')
-
-if aws_access_key_id:
-    log.debug("Using credentials-based s3 connection")
-    s3 = boto.connect_s3(aws_access_key_id, aws_secret_access_key)
-else:
-    log.debug("Using role-based s3 connection")
-    s3 = boto.connect_s3()
+s3 = boto3.resource('s3')
 
 def upload(fh, bucket):
 
@@ -72,14 +63,13 @@ def lambda_handler(event, context):
     logging.info("bucket: %s, key: %s", bucket_name, key)
 
     try:
-        bucket = s3.get_bucket(bucket_name)
-        obj = bucket.get_key(key)
+        obj = s3.Object(bucket_name, key).get()
     except Exception as e:
         log.error(e)
         log.error('Error getting object %s from bucket %s', key, bucket_name)
         raise
 
-    gzip_steam = gzip.GzipFile(mode='rb', fileobj=StringIO(obj.read()))
+    gzip_steam = gzip.GzipFile(mode='rb', fileobj=StringIO(obj['Body'].read()))
 
     # skip the first header line
     next(gzip_steam)
